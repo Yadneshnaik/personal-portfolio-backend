@@ -2,57 +2,67 @@ const express = require("express");
 const router = express.Router();
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+require("dotenv").config(); // Load .env variables
 
-// server used to send send emails
 const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use("/", router);
-app.listen(5000, () => console.log("Server Running"));
-console.log(process.env.EMAIL_USER);
-console.log(process.env.EMAIL_PASS);
 
+// Log email credentials for debugging (optional - remove in production)
+console.log("EMAIL_USER:", process.env.EMAIL_USER);
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+
+// Nodemailer Transporter
 const contactEmail = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: "naikyadnesh9@gmail.com",
-        pass: "mood nyps zwkj cllm"
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     },
 });
 
 contactEmail.verify((error) => {
     if (error) {
-        console.log(error);
+        console.log("Email Error:", error);
     } else {
-        console.log("Ready to Send");
+        console.log("Email Server Ready to Send");
     }
 });
 
+// Contact Route
 router.post("/contact", (req, res) => {
     const { firstName, lastName, email, phone, message } = req.body;
 
-    // Check for empty fields
     if (!firstName || !lastName || !email || !phone || !message) {
         return res.status(400).json({ code: 400, status: "All fields are required." });
     }
 
-    const name = firstName + " " + lastName;
-
+    const name = `${firstName} ${lastName}`;
     const mail = {
         from: name,
-        to: "naikyadnesh9@gmail.com",
+        to: process.env.EMAIL_USER,
         subject: "Contact Form Submission - Portfolio",
-        html: `<p>Name: ${name}</p>
-               <p>Email: ${email}</p>
-               <p>Phone: ${phone}</p>
-               <p>Message: ${message}</p>`,
+        html: `
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Phone:</strong> ${phone}</p>
+            <p><strong>Message:</strong><br>${message}</p>
+        `,
     };
 
     contactEmail.sendMail(mail, (error) => {
         if (error) {
-            res.status(500).json({ code: 500, status: "Failed to send message", error });
-        } else {
-            res.status(200).json({ code: 200, status: "Message Sent" });
+            return res.status(500).json({ code: 500, status: "Failed to send message", error });
         }
+        res.status(200).json({ code: 200, status: "Message Sent Successfully" });
     });
+});
+
+// Start Server
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
